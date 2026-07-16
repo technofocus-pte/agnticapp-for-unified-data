@@ -89,15 +89,15 @@
       }
     },
     "gptModelName": {
-      "type": "string",
-      "defaultValue": "gpt-4o-mini",
+    "type": "string",
+    "defaultValue": "gpt-5.1",
       "metadata": {
         "description": "Name of the GPT model to deploy:"
       }
     },
     "gptModelVersion": {
       "type": "string",
-      "defaultValue": "2024-07-18",
+      "defaultValue": "2025-11-13",
       "metadata": {
         "description": "Version of the GPT model to deploy:"
       }
@@ -183,7 +183,7 @@
         "azd": {
           "type": "location",
           "usageName": [
-            "OpenAI.GlobalStandard.gpt-4o-mini,150",
+            "OpenAI.GlobalStandard.gpt-5.1,150",
             "OpenAI.GlobalStandard.text-embedding-ada-002,80"
           ]
         },
