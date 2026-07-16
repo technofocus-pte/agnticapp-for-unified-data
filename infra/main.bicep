@@ -57,13 +57,12 @@ param searchServiceLocation string = resourceGroup().location
 param deploymentType string = 'GlobalStandard'
 
 @description('Name of the GPT model to deploy:')
-param gptModelName string = 'gpt-4o-mini'
+param gptModelName string = 'gpt-5.1'
 
 @description('Version of the GPT model to deploy:')
-param gptModelVersion string = '2024-07-18'
+param gptModelVersion string = '2025-11-13'
 
 param azureOpenAIApiVersion string = '2025-01-01-preview'
-
 param azureAiAgentApiVersion string = '2025-05-01'
 
 @minValue(10)
@@ -71,9 +70,6 @@ param azureAiAgentApiVersion string = '2025-05-01'
 // You can increase this, but capacity is limited per model/region, so you will get errors if you go over
 // https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits
 param gptDeploymentCapacity int = 150
-
-// @description('Optional. The tags to apply to all deployed Azure resources.')
-// param tags resourceInput<'Microsoft.Resources/resourceGroups@2025-04-01'>.tags = {}
 
 @minLength(1)
 @description('Name of the Text Embedding model to deploy:')
@@ -85,7 +81,6 @@ param embeddingModel string = 'text-embedding-ada-002'
 @minValue(10)
 @description('Capacity of the Embedding Model deployment')
 param embeddingDeploymentCapacity int = 80
-
 param imageTag string = isWorkshop ? 'latest_workshop' : 'latest_v2'
 
 @description('Deploy the application components (Cosmos DB, API, Frontend). Set to true to deploy the app.')
