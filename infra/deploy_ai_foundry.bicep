@@ -1,56 +1,56 @@
 // Creates Azure dependent resources for Azure AI studio
-
+ 
 @description('The name of the solution, used as a base for naming all resources.')
 param solutionName string
-
+ 
 @description('The Azure region where resources will be deployed.')
 param solutionLocation string
-
+ 
 @description('The deployment type for the GPT model (e.g., Standard, GlobalStandard).')
 param deploymentType string
-
+ 
 @description('The name of the GPT model to deploy (e.g., gpt-4o, gpt-4).')
 param gptModelName string
-
+ 
 @description('The version of the GPT model to deploy.')
 param gptModelVersion string
-
+ 
 // param azureOpenAIApiVersion string
-
+ 
 @description('The capacity (in thousands of tokens per minute) for the GPT model deployment.')
 param gptDeploymentCapacity int
-
+ 
 @description('The name of the embedding model to deploy.')
 param embeddingModel string
-
+ 
 @description('The capacity for the embedding model deployment.')
 param embeddingDeploymentCapacity int
-
+ 
 @description('The object ID of the managed identity to assign roles to.')
 param managedIdentityObjectId string = ''
-
+ 
 @description('The resource ID of an existing Log Analytics workspace. If empty, a new one will be created.')
 param existingLogAnalyticsWorkspaceId string = ''
-
+ 
 @description('The resource ID of an existing Azure AI Foundry project. If provided, the existing project will be used instead of creating a new one.')
 param azureExistingAIProjectResourceId string = ''
-
+ 
 @description('The principal ID of the user deploying the solution, used for role assignments.')
 param deployingUserPrincipalId string = ''
-
+ 
 @description('The principal type of the deploying user. Use ServicePrincipal for CI/CD pipelines with OIDC.')
 @allowed(['User', 'ServicePrincipal'])
 param deployingUserPrincipalType string = 'User'
-
+ 
 @description('Tags to apply to all resources.')
 param tags object = {}
-
+ 
 @description('Location for AI services deployment. This is the location where the Search service resource will be deployed.')
 param searchServiceLocation string = resourceGroup().location
-
+ 
 @description('When true, deploys additional resources for workshop scenarios including AI Search and Storage.')
 param isWorkshop bool = false
-
+ 
 var abbrs = loadJsonContent('./abbreviations.json')
 var aiServicesName = '${abbrs.ai.aiServices}${solutionName}'
 var workspaceName = '${abbrs.managementGovernance.logAnalyticsWorkspace}${solutionName}'
@@ -60,7 +60,7 @@ var aiProjectName = '${abbrs.ai.aiFoundryProject}${solutionName}'
 var aiSearchName = '${abbrs.ai.aiSearch}${solutionName}'
 var storageName = '${abbrs.storage.storageAccount}${toLower(replace(solutionName, '-', ''))}'
 var aiSearchConnectionName = 'search-connection-${solutionName}'
-
+ 
 var aiModelDeployments = concat([
   {
     name: gptModelName
@@ -83,24 +83,24 @@ var aiModelDeployments = concat([
     raiPolicyName: 'Microsoft.Default'
   }
 ] : [])
-
+ 
 var useExisting = !empty(existingLogAnalyticsWorkspaceId)
 var existingLawSubscription = useExisting ? split(existingLogAnalyticsWorkspaceId, '/')[2] : ''
 var existingLawResourceGroup = useExisting ? split(existingLogAnalyticsWorkspaceId, '/')[4] : ''
 var existingLawName = useExisting ? split(existingLogAnalyticsWorkspaceId, '/')[8] : ''
-
+ 
 var existingOpenAIEndpoint = !empty(azureExistingAIProjectResourceId) ? format('https://{0}.openai.azure.com/', split(azureExistingAIProjectResourceId, '/')[8]) : ''
 var existingProjEndpoint = !empty(azureExistingAIProjectResourceId) ? format('https://{0}.services.ai.azure.com/api/projects/{1}', split(azureExistingAIProjectResourceId, '/')[8], split(azureExistingAIProjectResourceId, '/')[10]) : ''
 var existingAIServicesName = !empty(azureExistingAIProjectResourceId) ? split(azureExistingAIProjectResourceId, '/')[8] : ''
 var existingAIProjectName = !empty(azureExistingAIProjectResourceId) ? split(azureExistingAIProjectResourceId, '/')[10] : ''
 var existingAIServiceSubscription = !empty(azureExistingAIProjectResourceId) ? split(azureExistingAIProjectResourceId, '/')[2] : subscription().subscriptionId
 var existingAIServiceResourceGroup = !empty(azureExistingAIProjectResourceId) ? split(azureExistingAIProjectResourceId, '/')[4] : resourceGroup().name
-
+ 
 resource existingLogAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = if (useExisting) {
   name: existingLawName
   scope: resourceGroup(existingLawSubscription ,existingLawResourceGroup)
 }
-
+ 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (!useExisting){
   name: workspaceName
   location: location
@@ -112,7 +112,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if
     }
   }
 }
-
+ 
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: applicationInsightsName
   location: location
@@ -124,7 +124,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
     WorkspaceResourceId: useExisting ? existingLogAnalyticsWorkspace.id : logAnalytics.id
   }
 }
-
+ 
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = if(isWorkshop) {
   name: storageName
@@ -140,13 +140,13 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = if(isWo
     supportsHttpsTrafficOnly: true
   }
 }
-
+ 
 // Blob Service
 resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = if(isWorkshop) {
   parent: storageAccount
   name: 'default'
 }
-
+ 
 resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' =  if (empty(azureExistingAIProjectResourceId)) {
   name: aiServicesName
   location: location
@@ -169,7 +169,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = 
     disableLocalAuth: true
   }
 }
-
+ 
 module existing_aiServicesModule 'existing_foundry_project.bicep' = if (!empty(azureExistingAIProjectResourceId)) {
   name: 'existing_foundry_project'
   scope: resourceGroup(existingAIServiceSubscription, existingAIServiceResourceGroup)
@@ -178,7 +178,7 @@ module existing_aiServicesModule 'existing_foundry_project.bicep' = if (!empty(a
     aiProjectName: existingAIProjectName
   }
 }
-
+ 
 @batchSize(1)
 resource aiServicesDeployments 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = [for aiModeldeployment in aiModelDeployments: if (empty(azureExistingAIProjectResourceId)) {
   parent: aiServices //aiServices_m
@@ -195,7 +195,7 @@ resource aiServicesDeployments 'Microsoft.CognitiveServices/accounts/deployments
     capacity: aiModeldeployment.sku.capacity
   }
 }]
-
+ 
 resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = if(isWorkshop) {
   name: aiSearchName
   location: searchServiceLocation
@@ -217,7 +217,7 @@ resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = if(isWo
     semanticSearch: 'free'
   }
 }
-
+ 
 module searchServiceEnableIdentity 'deploy_enable_srch_managed_identity.bicep' = if (isWorkshop) {
   name: 'searchServiceIdentity'
   params: {
@@ -228,7 +228,15 @@ module searchServiceEnableIdentity 'deploy_enable_srch_managed_identity.bicep' =
     aiSearch
   ]
 }
-
+ 
+// NOTE: dependsOn added so this project is created only after BOTH model
+// deployments finish on the same parent aiServices account. Without this,
+// Bicep has no dependency link between aiServicesDeployments and aiProject
+// (aiProject only references aiServices via `parent:`), so ARM can attempt
+// to create the project while a model deployment operation is still in
+// flight on that same account, producing:
+//   RequestConflict: Another operation is in progress on the resource
+//   '.../Microsoft.CognitiveServices/accounts/<name>'. Please try again later.
 resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview' =  if (empty(azureExistingAIProjectResourceId)) {
   parent: aiServices
   name: aiProjectName
@@ -238,8 +246,11 @@ resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-pre
     type: 'SystemAssigned'
   }
   properties: {}
+  dependsOn: [
+    aiServicesDeployments
+  ]
 }
-
+ 
 // Connect AI Search to Project
 resource searchConnection 'Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview' = if (empty(azureExistingAIProjectResourceId) && isWorkshop) {
   parent: aiProject
@@ -255,7 +266,7 @@ resource searchConnection 'Microsoft.CognitiveServices/accounts/projects/connect
     }
   }
 }
-
+ 
 // Connect Application Insights to Project
 resource appInsightsConnection 'Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview' = if (empty(azureExistingAIProjectResourceId)) {
   parent: aiProject
@@ -275,30 +286,30 @@ resource appInsightsConnection 'Microsoft.CognitiveServices/accounts/projects/co
     }
   }
 }
-
+ 
 // Role Definitions
-
+ 
 resource azureAIUser 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   scope: subscription()
   name: '53ca6127-db72-4b80-b1b0-d745d6d5456d' // Azure AI User
 }
-
+ 
 resource cognitiveServicesOpenAIUser 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
 }
-
+ 
 resource searchIndexDataReader 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
 }
-
+ 
 resource searchServiceContributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '7ca78c08-252a-4471-8644-bb5ff32d4ba0'
 }
-
+ 
 resource searchIndexDataContributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
 }
-
+ 
 resource assignFoundryRoleToMI 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId))  {
   name: guid(resourceGroup().id, aiServices.id, azureAIUser.id)
   scope: aiServices
@@ -308,7 +319,7 @@ resource assignFoundryRoleToMI 'Microsoft.Authorization/roleAssignments@2022-04-
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 module assignFoundryRoleToMIExisting 'deploy_foundry_role_assignment.bicep' = if (!empty(azureExistingAIProjectResourceId)) {
   name: 'assignFoundryRoleToMI'
   scope: resourceGroup(existingAIServiceSubscription, existingAIServiceResourceGroup)
@@ -330,7 +341,7 @@ module assignFoundryRoleToMIExisting 'deploy_foundry_role_assignment.bicep' = if
     aiModelDeployments: aiModelDeployments // Pass the model deployments to the module if model not already deployed
   }
 }
-
+ 
 resource assignOpenAIRoleToAISearch 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId) && isWorkshop)  {
   name: guid(resourceGroup().id, aiServices.id, cognitiveServicesOpenAIUser.id)
   scope: aiServices
@@ -340,7 +351,7 @@ resource assignOpenAIRoleToAISearch 'Microsoft.Authorization/roleAssignments@202
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 module existingOpenAiProject 'deploy_foundry_role_assignment.bicep' = if (!empty(azureExistingAIProjectResourceId) && isWorkshop) {
   name: 'assignOpenAIRoleToAISearchExisting'
   scope: resourceGroup(existingAIServiceSubscription, existingAIServiceResourceGroup)
@@ -353,7 +364,7 @@ module existingOpenAiProject 'deploy_foundry_role_assignment.bicep' = if (!empty
     enableSystemAssignedIdentity: true
   }
 }
-
+ 
 resource assignSearchIndexDataReaderToAiProject 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId) && isWorkshop) {
   name: guid(resourceGroup().id, aiProject.id, searchIndexDataReader.id)
   scope: aiSearch
@@ -363,7 +374,7 @@ resource assignSearchIndexDataReaderToAiProject 'Microsoft.Authorization/roleAss
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 resource assignSearchIndexDataReaderToExistingAiProject 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(azureExistingAIProjectResourceId) && isWorkshop) {
   name: guid(resourceGroup().id, existingAIProjectName, searchIndexDataReader.id, 'Existing')
   scope: aiSearch
@@ -373,7 +384,7 @@ resource assignSearchIndexDataReaderToExistingAiProject 'Microsoft.Authorization
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 resource assignSearchServiceContributorToAiProject 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId) && isWorkshop) {
   name: guid(resourceGroup().id, aiProject.id, searchServiceContributor.id)
   scope: aiSearch
@@ -383,7 +394,7 @@ resource assignSearchServiceContributorToAiProject 'Microsoft.Authorization/role
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 resource assignSearchServiceContributorToExistingAiProject 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(azureExistingAIProjectResourceId) && isWorkshop) {
   name: guid(resourceGroup().id, existingAIProjectName, searchServiceContributor.id, 'Existing')
   scope: aiSearch
@@ -393,7 +404,7 @@ resource assignSearchServiceContributorToExistingAiProject 'Microsoft.Authorizat
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 resource assignSearchIndexDataContributorToMI 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId) && isWorkshop) {
   name: guid(resourceGroup().id, aiProject.id, searchIndexDataContributor.id)
   scope: aiSearch
@@ -403,18 +414,18 @@ resource assignSearchIndexDataContributorToMI 'Microsoft.Authorization/roleAssig
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 // Storage Role Definitions
 resource storageBlobDataContributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   scope: subscription()
   name: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
 }
-
+ 
 resource storageBlobDataReader 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   scope: subscription()
   name: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1' // Storage Blob Data Reader
 }
-
+ 
 // Grant AI Project identity access to Storage
 resource projectStorageBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId) && isWorkshop) {
   scope: storageAccount
@@ -425,7 +436,7 @@ resource projectStorageBlobContributor 'Microsoft.Authorization/roleAssignments@
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 resource existingProjectStorageBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(azureExistingAIProjectResourceId) && isWorkshop) {
   scope: storageAccount
   name: guid(storageAccount.id, existingAIProjectName, storageBlobDataContributor.id)
@@ -435,7 +446,7 @@ resource existingProjectStorageBlobContributor 'Microsoft.Authorization/roleAssi
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 resource projectStorageBlobReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId) && isWorkshop) {
   scope: storageAccount
   name: guid(storageAccount.id, aiProject.id, storageBlobDataReader.id)
@@ -445,7 +456,7 @@ resource projectStorageBlobReader 'Microsoft.Authorization/roleAssignments@2022-
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 resource existingProjectStorageBlobReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(azureExistingAIProjectResourceId) && isWorkshop) {
   scope: storageAccount
   name: guid(storageAccount.id, existingAIProjectName, storageBlobDataReader.id)
@@ -455,7 +466,7 @@ resource existingProjectStorageBlobReader 'Microsoft.Authorization/roleAssignmen
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 // Grant AI Search identity access to Storage (for indexers)
 resource searchStorageBlobDataReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (isWorkshop) {
   scope: storageAccount
@@ -466,7 +477,7 @@ resource searchStorageBlobDataReader 'Microsoft.Authorization/roleAssignments@20
     principalType: 'ServicePrincipal'
   }
 }
-
+ 
 // Default container for AI Foundry
 resource defaultContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = if (isWorkshop) {
   parent: blobService
@@ -475,7 +486,7 @@ resource defaultContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
     publicAccess: 'None'
   }
 }
-
+ 
 // Connect Storage to Project
 resource storageConnection 'Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview' = if (isWorkshop) {
   parent: aiProject
@@ -493,13 +504,13 @@ resource storageConnection 'Microsoft.CognitiveServices/accounts/projects/connec
   }
   dependsOn: [defaultContainer]
 }
-
+ 
 // Role Definitions for deploying user
 resource cognitiveServicesUser 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   scope: subscription()
   name: 'a97b65f3-24c7-4388-baec-2e87135dc908' // Cognitive Services User
 }
-
+ 
 // Grant deploying user access to AI Services
 resource userAIServicesAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId)) {
   scope: aiServices
@@ -510,7 +521,7 @@ resource userAIServicesAccess 'Microsoft.Authorization/roleAssignments@2022-04-0
     principalType: deployingUserPrincipalType
   }
 }
-
+ 
 // Grant deploying user Azure AI User role on AI Services
 resource userAzureAIAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (empty(azureExistingAIProjectResourceId)) {
   scope: aiServices
@@ -521,7 +532,7 @@ resource userAzureAIAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' 
     principalType: deployingUserPrincipalType
   }
 }
-
+ 
 // Grant deploying user access to AI Search
 resource userSearchIndexContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (isWorkshop) {
   scope: aiSearch
@@ -532,7 +543,7 @@ resource userSearchIndexContributor 'Microsoft.Authorization/roleAssignments@202
     principalType: deployingUserPrincipalType
   }
 }
-
+ 
 resource userSearchServiceContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (isWorkshop) {
   scope: aiSearch
   name: guid(aiSearch.id, deployingUserPrincipalId, searchServiceContributor.id)
@@ -542,7 +553,7 @@ resource userSearchServiceContributor 'Microsoft.Authorization/roleAssignments@2
     principalType: deployingUserPrincipalType
   }
 }
-
+ 
 // Grant deploying user access to Storage
 resource userStorageBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (isWorkshop) {
   scope: storageAccount
@@ -553,10 +564,10 @@ resource userStorageBlobContributor 'Microsoft.Authorization/roleAssignments@202
     principalType: deployingUserPrincipalType
   }
 }
-
+ 
 output aiServicesTarget string = !empty(existingOpenAIEndpoint) ? existingOpenAIEndpoint : aiServices.properties.endpoints['OpenAI Language Model Instance API'] //aiServices_m.properties.endpoint
 output aiServicesName string = !empty(existingAIServicesName) ? existingAIServicesName : aiServicesName
-
+ 
 output aiSearchName string = isWorkshop ? aiSearchName : ''
 output aiSearchId string = isWorkshop ? aiSearch.id : ''
 output aiSearchTarget string = isWorkshop ? 'https://${aiSearch.name}.search.windows.net' : ''
@@ -564,12 +575,12 @@ output aiSearchService string = isWorkshop ? aiSearch.name : ''
 output aiProjectName string = !empty(existingAIProjectName) ? existingAIProjectName : aiProject.name
 output aiSearchConnectionName string = isWorkshop ? aiSearchConnectionName : ''
 output aiSearchConnectionId string = (isWorkshop && empty(azureExistingAIProjectResourceId)) ? searchConnection.id : ''
-
+ 
 output applicationInsightsId string = applicationInsights.id
 output logAnalyticsWorkspaceResourceName string = useExisting ? existingLogAnalyticsWorkspace.name : logAnalytics.name
 output logAnalyticsWorkspaceResourceGroup string = useExisting ? existingLawResourceGroup : resourceGroup().name
 output logAnalyticsWorkspaceSubscription string = useExisting ? existingLawSubscription : subscription().subscriptionId
-
+ 
 output projectEndpoint string = !empty(existingProjEndpoint) ? existingProjEndpoint : aiProject.properties.endpoints['AI Foundry API']
 output applicationInsightsConnectionString string = applicationInsights.properties.ConnectionString
 output aiFoundryResourceId string = !empty(azureExistingAIProjectResourceId) ? azureExistingAIProjectResourceId : aiServices.id
